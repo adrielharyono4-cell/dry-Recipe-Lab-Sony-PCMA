@@ -77,7 +77,7 @@ The project compiles cleanly in **Pure Java** without requiring the Android NDK:
 
 ---
 
-## 🚀 Building the Application
+## 🚀 Building the Application ##
 
 1. **Configure Environment Paths (PowerShell):**
    ```powershell
@@ -95,16 +95,16 @@ Execute Build Script (build.cmd):
     Output Artifact:
     The compiled APK will be generated in the root directory: D:\project\DRY-Recipe-Lab-Sony-PCMA\dry-Film-lab.apk
 
-##🧪 Running Unit Tests
+##🧪 Running Unit Tests##
 
 Execute the full camera-free test suite on PC without requiring hardware connected:
 Bash
 
-# Run all unit tests
+# Run all unit tests 
 ./tools/test.sh
 
 The suite verifies 310 standalone unit tests covering recipe catalog structures, ISP parameter translations, physical key handling, and localization tables (English, Simplified Chinese, Traditional Chinese).
-##📱 Deployment to Camera
+##📱 Deployment to Camera ##
 
     Connect your Sony NEX-5R to the PC via USB in Mass Storage or Auto mode.
 
@@ -129,6 +129,6 @@ The suite verifies 310 standalone unit tests covering recipe catalog structures,
 
     In this snapshot, NativeBackup.java acts as an in-memory HashMap mock for unit testing. To persist camera settings permanently across power cycles, the native Sony settings-store interface must be restored before production release.
 
-##📄 Architectural Documentation
+##📄 Architectural Documentation##
 
 A complete 5-page architectural specification and source-code audit document is available in PDF format: docs/dry-Film-lab_Architecture_and_Spec.pdf

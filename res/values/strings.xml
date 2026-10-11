@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">dry-Film-lab</string>
+    <!-- Attribution — DO NOT REMOVE -->
+    <string name="attr_original">FilmLab / Recipe Lab</string>
+    <string name="attr_original_author">Marten Boet &amp; Contributors</string>
+    <string name="attr_source">github.com/voxivoid/recipe-lab-sony-pmca</string>
+    <string name="attr_modder">Adriel Haryono</string>
+    <string name="attr_mod_desc">Video Integration &amp; NEX-5R Port</string>
+</resources>

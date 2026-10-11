@@ -1,0 +1,31 @@
+name: Feature request
+description: Suggest a change to the app itself
+labels: ["type: feat", "status: needs-triage"]
+body:
+  - type: input
+    id: camera
+    attributes:
+      label: Which camera do you use?
+      description: Optional, but it matters — controls and settings differ across PlayMemories bodies.
+      placeholder: "Sony A5100 (ILCE-5100)"
+  - type: textarea
+    id: problem
+    attributes:
+      label: What is the problem?
+      description: What are you trying to do that the app makes hard today?
+    validations: { required: true }
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What should it do instead?
+      description: >
+        If it involves camera controls, say which key or dial. Every function has to work on the keys every
+        PlayMemories body has — wheel, four-way, centre, MENU, trash and shutter; an A5100 has no Fn, AEL or C1 — so
+        a new function usually becomes a row of the app menu (hold MENU) rather than a key of its own.
+    validations: { required: true }
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Which part of the app?
+      options: [ui, input, browser, recipes, tools, build, "other camera bodies", "not sure"]
+    validations: { required: true }

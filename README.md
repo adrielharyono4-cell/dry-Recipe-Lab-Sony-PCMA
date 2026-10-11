@@ -49,22 +49,16 @@ The UI watermark explicitly reads:
 │   MainActivity / MenuView / PickerView / Status Overlay     │
 └──────────────────────────────┬──────────────────────────────┘
                       (Preset Selection)
-                               │ 
-                               ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                     Recipes & Params                        │
 │   Maps "S-Log Style" -> Neutral, Con -3, Sat -2, Sharp -1   │
 └──────────────────────────────┬──────────────────────────────┘
                 (Apply Preview & Write Parameters)
-                               │ 
-                               ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                 Sony CameraEx SDK / ISP                     │
 │   Hardware-level processing directly to Photo & Video Stream│
 └──────────────────────────────┬──────────────────────────────┘
                     (Trigger Video Recording)
-                               │ 
-                               ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                   AvindexStore Notifier                     │
 │   Background thread media registration (MP4/MTS/JPG)        │

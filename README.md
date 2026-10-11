@@ -1,6 +1,6 @@
 # dry-Film-lab (Sony PlayMemories Camera App)
 
-**dry-Film-lab** is a high-performance custom camera application tailored for the **Sony NEX-5R** camera ecosystem (Sony CX68000 / Gen 2 platform, running on Android API 10 / Gingerbread 2.3.7).
+**dry-Film-lab** is a high-performance custom camera application tailored for Sony Alpha/Nex or supported camera ecosystem (Sony CX68000 / Gen 2 platform, running on Android API 10 / Gingerbread 2.3.7).
 
 The app is ported and adapted from the open-source **FilmLab** project, optimized specifically for hardware Image Signal Processor (ISP) color transformation without overburdening the system CPU.
 

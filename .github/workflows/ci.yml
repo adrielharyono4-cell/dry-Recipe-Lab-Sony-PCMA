@@ -98,16 +98,11 @@ jobs:
           yes | "$SDKMANAGER" --licenses >/dev/null 2>&1 || true
           "$SDKMANAGER" "build-tools;30.0.3" "platforms;android-28" "ndk;16.1.4479499"
       - name: Build
-        env:
-          # Signed with the project key so the artifact can be installed over an existing app.
-          # Absent on fork PRs, where build.sh falls back to a throwaway key.
-          ANDROID_KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
-          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           export ANDROID_SDK="$ANDROID_SDK_ROOT"
           export ANDROID_NDK="$ANDROID_SDK_ROOT/ndk/16.1.4479499"
+          # Branch-controlled CI builds must never receive release-signing secrets.
+          # build.sh uses its throwaway key when no signing variables are present.
           ./build.sh
       # Catches a leaked errno.h rename or a manifest the build mutated.
       - name: Working tree must be clean

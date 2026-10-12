@@ -49,7 +49,7 @@ final class Keys {
      */
     static boolean oneShot(int scan) {
         switch (scan) {
-            case K_ENTER: case K_MENU: case K_SK1: case K_DELETE: case K_SK2: case K_FN: return true;
+            case K_ENTER: case K_MENU: case K_SK1: case K_DELETE: case K_SK2: case K_FN: case K_MOVIE: return true;
             default: return false;
         }
     }
@@ -226,6 +226,34 @@ final class Keys {
         int[] out = new int[lines];
         for (int i = 0; i < lines; i++) out[i] = greedy.get(i);
         return out;
+    }
+
+    /** Writes the same layout into caller-owned storage; used by drawing code that must not allocate while rendering. */
+    static int lineCounts(float[] widths, float width, float gap, int[] out) {
+        if (out.length < widths.length) throw new IllegalArgumentException("line-count buffer is too small");
+        int lines = 0, n = 0, total = widths.length;
+        float used = 0;
+        for (float w : widths) {
+            float need = n == 0 ? w : used + gap + w;
+            if (n > 0 && need > width) { out[lines++] = n; n = 0; need = w; }
+            used = need; n++;
+        }
+        if (n > 0) out[lines++] = n;
+        if (lines > 1) {
+            boolean fits = true;
+            int at = 0;
+            for (int i = 0; i < lines && fits; i++) {
+                int count = total / lines + (i < total % lines ? 1 : 0);
+                float w = 0;
+                for (int k = at; k < at + count; k++) w += widths[k] + (k > at ? gap : 0);
+                fits = w <= width || count == 1;
+                at += count;
+            }
+            if (fits) {
+                for (int i = 0; i < lines; i++) out[i] = total / lines + (i < total % lines ? 1 : 0);
+            }
+        }
+        return lines;
     }
 
     /** shown once, on the first launch of a build with these keys */

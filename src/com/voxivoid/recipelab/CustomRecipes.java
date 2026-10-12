@@ -262,14 +262,19 @@ final class CustomRecipes {
         File tmp = new File(dir, TMP), target = new File(dir, file);
         if (tmp.exists()) remove(tmp);                                  // left by a save the camera was switched off in
         FileOutputStream out = new FileOutputStream(tmp);
+        boolean saved = false;
         try {
-            out.write(RecipeFormats.write(r, madeOn).getBytes(UTF8));
-            out.flush();
-            try { out.getFD().sync(); } catch (IOException noSync) {}   // Sony's FUSE layer has no fsync
-        } catch (IOException e) {
-            out.close(); tmp.delete(); throw e;
+            try {
+                out.write(RecipeFormats.write(r, madeOn).getBytes(UTF8));
+                out.flush();
+                try { out.getFD().sync(); } catch (IOException noSync) {}   // Sony's FUSE layer has no fsync
+            } finally {
+                out.close();
+            }
+            saved = true;
+        } finally {
+            if (!saved) tmp.delete();
         }
-        out.close();
         boolean same = oldFile != null && oldFile.equalsIgnoreCase(file);   // an edit, or a rename that only changes case
         if (same) remove(new File(dir, oldFile));                       // on FAT it is the target itself
         if (target.exists()) remove(target);

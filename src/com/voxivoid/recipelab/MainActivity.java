@@ -147,7 +147,7 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         private boolean visible = true;
         @Override public void run() {
             if (videoRecorder == null || !videoRecorder.isRecording()) {
-                showRecIndicator(true);      // stay solid if still recording
+                showRecIndicator(false);
                 return;
             }
             visible = !visible;
@@ -540,23 +540,51 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         try {
             if (!f.exists()) {
                 FileOutputStream o = new FileOutputStream(f);
-                for (int[] e : ids) { byte[] v; try { v = NativeBackup.read(e[0]); } catch (Throwable t) { v = new byte[0]; } o.write(v.length); o.write(v); }
-                o.close();
+                boolean complete = false;
+                try {
+                    for (int[] e : ids) {
+                        byte[] v;
+                        try { v = NativeBackup.read(e[0]); } catch (Throwable t) { v = new byte[0]; }
+                        if (v.length > 255) throw new IOException("Snapshot value exceeds one-byte length");
+                        o.write(v.length);
+                        o.write(v);
+                    }
+                    o.flush();
+                    o.close();
+                    complete = true;
+                } finally {
+                    if (!complete) {
+                        try { o.close(); } finally { f.delete(); }
+                    }
+                }
                 showToast(Lang.t("status_snapshot_taken", ids.size()), 6000);
                 return;
             }
             FileInputStream in = new FileInputStream(f);
             StringBuilder sb = new StringBuilder(); int changed = 0;
-            for (int[] e : ids) {
-                int len = in.read(); byte[] old = new byte[Math.max(0, len)]; if (len > 0) in.read(old);
-                byte[] now; try { now = NativeBackup.read(e[0]); } catch (Throwable t) { now = new byte[0]; }
-                if (!java.util.Arrays.equals(old, now)) {
-                    changed++;
-                    if (changed <= 14) sb.append(Params.diffEntry(e[0], old, now));
+            try {
+                for (int[] e : ids) {
+                    int len = in.read();
+                    if (len < 0) throw new IOException("Incomplete settings snapshot");
+                    byte[] old = new byte[len];
+                    int offset = 0;
+                    while (offset < len) {
+                        int n = in.read(old, offset, len - offset);
+                        if (n < 0) throw new IOException("Incomplete settings snapshot value");
+                        offset += n;
+                    }
+                    byte[] now; try { now = NativeBackup.read(e[0]); } catch (Throwable t) { now = new byte[0]; }
+                    if (!java.util.Arrays.equals(old, now)) {
+                        changed++;
+                        if (changed <= 14) sb.append(Params.diffEntry(e[0], old, now));
+                    }
                 }
+            } finally {
+                in.close();
             }
-            in.close(); f.delete();
-            java.io.FileWriter w = new java.io.FileWriter(new File(getFilesDir(), "diff.txt"), true); w.write(changed + " changed  " + sb + "\n"); w.close();
+            java.io.FileWriter w = new java.io.FileWriter(new File(getFilesDir(), "diff.txt"), true);
+            try { w.write(changed + " changed  " + sb + "\n"); } finally { w.close(); }
+            if (f.exists() && !f.delete()) throw new IOException("Could not remove settings snapshot");
             showToast(Lang.t("status_diff_changed", changed, sb.toString()), 0);
         } catch (Throwable t) { showToast(Lang.t("status_snapshot_error", String.valueOf(t)), 0); }
     }
@@ -1345,9 +1373,7 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
                 if (videoRecorder != null && videoRecorder.isRecording()) return true;
                 try { takePictureSafely(); } catch (Throwable t) {} return true;
             case K_MOVIE:
-                // Physical Movie button (scan 515) — toggle recording on key-down,
-                // oneShot is NOT set for K_MOVIE so repeat events are naturally blocked
-                // by the VideoRecorder's own state guard.
+                // Physical Movie button (scan 515) — key-repeat is filtered by oneShot above.
                 if (videoRecorder != null) videoRecorder.toggle();
                 return true;
             case K_MENU: case K_SK1:

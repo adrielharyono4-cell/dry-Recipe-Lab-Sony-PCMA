@@ -13,15 +13,14 @@ import java.lang.reflect.Method;
  *
  * <h3>Design goals (NEX-5R / API 10 / tight RAM)</h3>
  * <ul>
- *   <li><b>Zero-allocation hot path</b> — no {@code new} in toggle() or the
- *       recording-state poll; all work objects are pre-allocated.</li>
+ *   <li><b>No frame-processing loop</b> — recording is controlled by key events;
+ *       the only timed UI work is the Activity's 500 ms REC indicator.</li>
  *   <li><b>Non-blocking I/O</b> — AvindexStore notification runs on a
  *       dedicated {@link Thread} so it never delays the UI or preview threads.</li>
  *   <li><b>UI cap ≤ 2 Hz</b> — caller pumps {@link #isRecording()} from a
  *       500 ms Handler tick; this class itself performs no timed work.</li>
- *   <li><b>Defensive null / reflection checks</b> — every CameraEx / AvindexStore
- *       call is wrapped in try-catch so the app never force-closes if a firmware
- *       version doesn't expose a method.</li>
+ *   <li><b>Defensive reflection checks</b> — unavailable methods and explicit
+ *       boolean failure results are reported instead of presented as success.</li>
  * </ul>
  *
  * <h3>Attribution — DO NOT REMOVE</h3>
@@ -70,11 +69,7 @@ final class VideoRecorder {
     /** @return {@code true} while startMovieRec has been called and stopMovieRec has not. */
     boolean isRecording() { return recording; }
 
-    /**
-     * Toggle recording on / off.  Safe to call from the UI thread — all
-     * heavy work is dispatched to a background thread.
-     * K_MOVIE (scan 515) should be the only caller.
-     */
+    /** Toggle recording from the Sony movie key (scan 515); media indexing is dispatched separately. */
     void toggle() {
         if (recording) stopRecording(); else startRecording();
     }
@@ -89,13 +84,14 @@ final class VideoRecorder {
     private void startRecording() {
         if (cameraEx == null) { notifyListener(false, "CameraEx unavailable"); return; }
         try {
-            Method m = cameraEx.getClass().getMethod(M_START);
-            m.invoke(cameraEx);
+            invokeControl(cameraEx, M_START);
             recording = true;
             notifyListener(true, null);
-        } catch (Throwable t) {
+        } catch (Exception e) {
             recording = false;
-            notifyListener(false, "startMovieRec: " + t.getMessage());
+            String error = "startMovieRec: " + e.getMessage();
+            android.util.Log.e("dry-Film-lab", error, e);
+            notifyListener(false, error);
         }
     }
 
@@ -103,21 +99,40 @@ final class VideoRecorder {
 
     private void stopRecording() {
         if (cameraEx == null) { recording = false; notifyListener(false, null); return; }
+        String error = null;
+        boolean stopped = false;
         try {
-            Method m = cameraEx.getClass().getMethod(M_STOP);
-            m.invoke(cameraEx);
-        } catch (Throwable t) {
-            // Log but don't crash — file may already be flushed by firmware
+            invokeControl(cameraEx, M_STOP);
+            stopped = true;
+        } catch (Exception e) {
+            error = "stopMovieRec: " + e.getMessage();
+            android.util.Log.e("dry-Film-lab", error, e);
         } finally {
-            recording = false;
-            notifyListener(false, null);
-            // AvindexStore notification is I/O — run off the UI thread.
-            // Uses a plain Thread (no Executor) — API 10 doesn't guarantee
-            // ThreadPoolExecutor availability in all Gingerbread builds.
-            Thread t = new Thread(notifyRunnable, "avindex-notify");
-            t.setPriority(Thread.MIN_PRIORITY);   // thermal: stay away from ISP threads
-            t.start();
+            if (stopped) {
+                recording = false;
+                notifyListener(false, error);
+                queueAvindexNotify();
+            } else {
+                notifyListener(true, error);
+            }
         }
+    }
+
+    private void queueAvindexNotify() {
+        // API 10 builds cannot be assumed to have a usable ExecutorService.
+        try {
+            Thread t = new Thread(notifyRunnable, "avindex-notify");
+            t.setPriority(Thread.MIN_PRIORITY);
+            t.start();
+        } catch (RuntimeException e) {
+            android.util.Log.e("dry-Film-lab", "Unable to start AvindexStore worker", e);
+        }
+    }
+
+    private static void invokeControl(Object target, String methodName) throws Exception {
+        Method method = target.getClass().getMethod(methodName);
+        Object result = method.invoke(target);
+        if (Boolean.FALSE.equals(result)) throw new IllegalStateException(methodName + " returned false");
     }
 
     // ── AvindexStore async notification ───────────────────────────────────────
@@ -139,7 +154,9 @@ final class VideoRecorder {
             Method gf = cameraEx.getClass().getMethod(M_LAST_FILE);
             Object result = gf.invoke(cameraEx);
             if (result instanceof String) path = (String) result;
-        } catch (Throwable t) { /* method may not exist on all firmware */ }
+        } catch (Exception e) {
+            android.util.Log.w("dry-Film-lab", "CameraEx could not provide the last movie path", e);
+        }
 
         // 2. Fallback: scan DCIM/100MSDCF for the newest .MP4 / .MTS file
         if (path == null || path.isEmpty()) {
@@ -156,7 +173,9 @@ final class VideoRecorder {
                     }
                     if (newest != null) path = newest.getAbsolutePath();
                 }
-            } catch (Throwable t) { /* SD card unavailable */ }
+            } catch (RuntimeException e) {
+                android.util.Log.w("dry-Film-lab", "Unable to scan the camera media directory", e);
+            }
         }
 
         // 3. Notify AvindexStore — this makes the file visible in the gallery
@@ -166,11 +185,15 @@ final class VideoRecorder {
     /** Index a captured still after its file has been closed, without blocking the camera callback. */
     static void indexMediaFile(final String path) {
         if (path == null || path.length() == 0) return;
-        Thread t = new Thread(new Runnable() {
-            @Override public void run() { notifyMediaFile(path); }
-        }, "avindex-notify");
-        t.setPriority(Thread.MIN_PRIORITY);
-        t.start();
+        try {
+            Thread t = new Thread(new Runnable() {
+                @Override public void run() { notifyMediaFile(path); }
+            }, "avindex-notify");
+            t.setPriority(Thread.MIN_PRIORITY);
+            t.start();
+        } catch (RuntimeException e) {
+            android.util.Log.e("dry-Film-lab", "Unable to start still-image index worker for " + path, e);
+        }
     }
 
     private static void notifyMediaFile(String path) {
@@ -178,9 +201,10 @@ final class VideoRecorder {
         try {
             Class<?> av = Class.forName(AV_CLASS);
             Method notify = av.getMethod(M_NOTIFY, String.class);
-            notify.invoke(null, path);
-        } catch (Throwable t) {
-            android.util.Log.w("dry-Film-lab", "AvindexStore could not index " + path, t);
+            Object result = notify.invoke(null, path);
+            if (Boolean.FALSE.equals(result)) throw new IllegalStateException(M_NOTIFY + " returned false");
+        } catch (Exception e) {
+            android.util.Log.w("dry-Film-lab", "AvindexStore could not index " + path, e);
         }
     }
 

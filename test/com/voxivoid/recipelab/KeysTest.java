@@ -179,7 +179,7 @@ class KeysTest {
 
     // ---- scan codes
     @Test void theGesturesKeysAreOneShotAndTheWalkingKeysAreNot() {
-        for (int k : new int[] { Keys.K_ENTER, Keys.K_MENU, Keys.K_SK1, Keys.K_DELETE, Keys.K_SK2, Keys.K_FN }) assertTrue(Keys.oneShot(k), "" + k);
+        for (int k : new int[] { Keys.K_ENTER, Keys.K_MENU, Keys.K_SK1, Keys.K_DELETE, Keys.K_SK2, Keys.K_FN, Keys.K_MOVIE }) assertTrue(Keys.oneShot(k), "" + k);
         for (int k : new int[] { Keys.K_UP, Keys.K_DOWN, Keys.K_LEFT, Keys.K_RIGHT, Keys.K_WHEEL_CW, Keys.K_DIAL_CCW }) assertFalse(Keys.oneShot(k), "" + k);
     }
 
@@ -235,5 +235,20 @@ class KeysTest {
             for (int n : Keys.lineCounts(widths, width, 4)) { assertTrue(n > 0, "no empty line"); sum += n; }
             assertEquals(widths.length, sum, "width " + width);
         }
+    }
+
+    @Test void reusableLineCountBufferMatchesTheAllocatingLayout() {
+        float[] widths = { 10, 10, 10, 10, 10, 10, 10 };
+        int[] lines = new int[widths.length];
+        int count = Keys.lineCounts(widths, 85, 5, lines);
+        assertEquals(2, count);
+        assertArrayEquals(new int[] { 4, 3 }, Arrays.copyOf(lines, count));
+        assertArrayEquals(new int[] { 4, 3 }, Keys.lineCounts(widths, 85, 5));
+
+        float[] uneven = { 30, 30, 10, 30 };
+        count = Keys.lineCounts(uneven, 50, 5, lines);
+        assertEquals(3, count);
+        assertArrayEquals(new int[] { 1, 2, 1 }, Arrays.copyOf(lines, count));
+        assertArrayEquals(new int[] { 1, 2, 1 }, Keys.lineCounts(uneven, 50, 5));
     }
 }
